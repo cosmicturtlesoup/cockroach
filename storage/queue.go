@@ -76,8 +76,8 @@ func (pq *priorityQueue) update(item *rangeItem, priority float64) {
 }
 
 var (
-	queueDisabled   = errors.New("range gc queue disabled")
-	rangeNotAddable = errors.New("range shouldn't be added")
+	errQueueDisabled   = errors.New("queue disabled")
+	errRangeNotAddable = errors.New("range shouldn't be added to queue")
 )
 
 type queueImpl interface {
@@ -182,14 +182,14 @@ func (bq *baseQueue) MaybeAdd(rng *Range, now proto.Timestamp) {
 // added.
 func (bq *baseQueue) addInternal(rng *Range, should bool, priority float64) error {
 	if atomic.LoadInt32(&bq.disabled) == 1 {
-		return queueDisabled
+		return errQueueDisabled
 	}
 	item, ok := bq.ranges[rng.Desc().RaftID]
 	if !should {
 		if ok {
 			bq.remove(item.index)
 		}
-		return rangeNotAddable
+		return errRangeNotAddable
 	} else if ok {
 		// Range has already been added; update priority.
 		bq.priorityQ.update(item, priority)

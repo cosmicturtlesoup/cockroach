@@ -78,7 +78,6 @@ func (q *rangeGCQueue) process(now proto.Timestamp, rng *Range) error {
 	// want to do a consistent read here. This is important when we are
 	// considering one of the metadata ranges: we must not do an inconsistent
 	// lookup in our own copy of the range.
-	log.Infof("processing rng from store %d", rng.rm.StoreID())
 	reply := proto.InternalRangeLookupResponse{}
 	b := &client.Batch{}
 	b.InternalAddCall(proto.Call{
@@ -142,7 +141,9 @@ func (q *rangeGCQueue) process(now proto.Timestamp, rng *Range) error {
 		// to avoid processing this range again before the next inactivity threshold.
 		if err := rng.requestLeaderLease(now); err != nil {
 			if _, ok := err.(*proto.LeaseRejectedError); !ok {
-				log.Warningf("unable to acquire lease from valid range %s: %s", rng, err)
+				if log.V(1) {
+					log.Infof("unable to acquire lease from valid range %s: %s", rng, err)
+				}
 			}
 		}
 	}
