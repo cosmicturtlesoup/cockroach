@@ -20,8 +20,6 @@ package structured
 import "fmt"
 
 const (
-	// PrimaryKeyIndexName is the name of the index for the primary key.
-	PrimaryKeyIndexName = "primary"
 	// MaxReservedDescID is the maximum reserved descriptor ID.
 	MaxReservedDescID = 999
 	// RootNamespaceID is the ID of the root namespace.

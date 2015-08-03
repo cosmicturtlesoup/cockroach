@@ -163,17 +163,18 @@ func (m *ColumnDescriptor) GetNullable() bool {
 }
 
 type IndexDescriptor struct {
-	Name   string `protobuf:"bytes,1,opt,name=name" json:"name"`
-	ID     uint32 `protobuf:"varint,2,opt,name=id" json:"id"`
-	Unique bool   `protobuf:"varint,3,opt,name=unique" json:"unique"`
+	Name    string `protobuf:"bytes,1,opt,name=name" json:"name"`
+	ID      uint32 `protobuf:"varint,2,opt,name=id" json:"id"`
+	Unique  bool   `protobuf:"varint,3,opt,name=unique" json:"unique"`
+	Primary bool   `protobuf:"varint,4,opt,name=primary" json:"primary"`
 	// An ordered list of column names of which the index is comprised. This list
 	// parallels the column_ids list. If duplicating the storage of the column
 	// names here proves to be prohibitive, we could clear this field before
 	// saving and reconstruct it after loading.
-	ColumnNames []string `protobuf:"bytes,4,rep,name=column_names" json:"column_names,omitempty"`
+	ColumnNames []string `protobuf:"bytes,5,rep,name=column_names" json:"column_names,omitempty"`
 	// An ordered list of column ids of which the index is comprised. This list
 	// parallels the column_names list.
-	ColumnIDs        []uint32 `protobuf:"varint,5,rep,name=column_ids" json:"column_ids,omitempty"`
+	ColumnIDs        []uint32 `protobuf:"varint,6,rep,name=column_ids" json:"column_ids,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -198,6 +199,13 @@ func (m *IndexDescriptor) GetID() uint32 {
 func (m *IndexDescriptor) GetUnique() bool {
 	if m != nil {
 		return m.Unique
+	}
+	return false
+}
+
+func (m *IndexDescriptor) GetPrimary() bool {
+	if m != nil {
+		return m.Primary
 	}
 	return false
 }
@@ -609,6 +617,23 @@ func (m *IndexDescriptor) Unmarshal(data []byte) error {
 			}
 			m.Unique = bool(v != 0)
 		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Primary", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Primary = bool(v != 0)
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ColumnNames", wireType)
 			}
@@ -630,7 +655,7 @@ func (m *IndexDescriptor) Unmarshal(data []byte) error {
 			}
 			m.ColumnNames = append(m.ColumnNames, string(data[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 5:
+		case 6:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ColumnIDs", wireType)
 			}
@@ -1073,6 +1098,7 @@ func (m *IndexDescriptor) Size() (n int) {
 	n += 1 + l + sovStructured(uint64(l))
 	n += 1 + sovStructured(uint64(m.ID))
 	n += 2
+	n += 2
 	if len(m.ColumnNames) > 0 {
 		for _, s := range m.ColumnNames {
 			l = len(s)
@@ -1257,9 +1283,17 @@ func (m *IndexDescriptor) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0
 	}
 	i++
+	data[i] = 0x20
+	i++
+	if m.Primary {
+		data[i] = 1
+	} else {
+		data[i] = 0
+	}
+	i++
 	if len(m.ColumnNames) > 0 {
 		for _, s := range m.ColumnNames {
-			data[i] = 0x22
+			data[i] = 0x2a
 			i++
 			l = len(s)
 			for l >= 1<<7 {
@@ -1274,7 +1308,7 @@ func (m *IndexDescriptor) MarshalTo(data []byte) (n int, err error) {
 	}
 	if len(m.ColumnIDs) > 0 {
 		for _, num := range m.ColumnIDs {
-			data[i] = 0x28
+			data[i] = 0x30
 			i++
 			i = encodeVarintStructured(data, i, uint64(num))
 		}

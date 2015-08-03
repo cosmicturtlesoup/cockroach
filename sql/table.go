@@ -19,6 +19,7 @@ package sql
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/cockroachdb/cockroach/keys"
@@ -31,7 +32,6 @@ import (
 func makeTableDesc(p *parser.CreateTable) (structured.TableDescriptor, error) {
 	desc := structured.TableDescriptor{}
 	desc.Name = p.Table.String()
-
 	for _, def := range p.Defs {
 		switch d := def.(type) {
 		case *parser.ColumnTableDef:
@@ -73,26 +73,40 @@ func makeTableDesc(p *parser.CreateTable) (structured.TableDescriptor, error) {
 			if d.PrimaryKey || d.Unique {
 				index := structured.IndexDescriptor{
 					Unique:      true,
+					Primary:     d.PrimaryKey,
 					ColumnNames: []string{string(d.Name)},
 				}
-				if d.PrimaryKey {
-					index.Name = "primary"
+				if index.Primary {
+					if index.Name == "" {
+						index.Name = "primary"
+					}
+					desc.Indexes = append([]structured.IndexDescriptor{index}, desc.Indexes...)
+				} else {
+					desc.Indexes = append(desc.Indexes, index)
 				}
-				desc.Indexes = append(desc.Indexes, index)
 			}
 		case *parser.IndexTableDef:
 			index := structured.IndexDescriptor{
 				Name:        string(d.Name),
 				Unique:      d.Unique,
+				Primary:     d.PrimaryKey,
 				ColumnNames: d.Columns,
 			}
-			if d.PrimaryKey {
-				index.Name = "primary"
+			if index.Primary {
+				if index.Name == "" {
+					index.Name = "primary"
+				}
+				desc.Indexes = append([]structured.IndexDescriptor{index}, desc.Indexes...)
+			} else {
+				desc.Indexes = append(desc.Indexes, index)
 			}
-			desc.Indexes = append(desc.Indexes, index)
 		default:
 			return desc, fmt.Errorf("unsupported table def: %T", def)
 		}
+	}
+	// Ensure that there is a primary index
+	if len(desc.Indexes) == 0 || !desc.Indexes[0].Primary {
+		return desc, errors.New("primary index unspecified")
 	}
 	return desc, nil
 }

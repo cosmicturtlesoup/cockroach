@@ -101,7 +101,7 @@ func TestMakeTableDescColumns(t *testing.T) {
 			t.Fatalf("%d: %v", i, err)
 		}
 		schema, err := makeTableDesc(stmt[0].(*parser.CreateTable))
-		if err != nil {
+		if err != nil && err.Error() != "primary index unspecified" {
 			t.Fatalf("%d: %v", i, err)
 		}
 		if !reflect.DeepEqual(d.colType, schema.Columns[0].Type) {
@@ -125,6 +125,7 @@ func TestMakeTableDescIndexes(t *testing.T) {
 			structured.IndexDescriptor{
 				Name:        "primary",
 				Unique:      true,
+				Primary:     true,
 				ColumnNames: []string{"a"},
 			},
 		},
@@ -133,6 +134,7 @@ func TestMakeTableDescIndexes(t *testing.T) {
 			structured.IndexDescriptor{
 				Name:        "",
 				Unique:      true,
+				Primary:     false,
 				ColumnNames: []string{"a"},
 			},
 		},
@@ -141,14 +143,25 @@ func TestMakeTableDescIndexes(t *testing.T) {
 			structured.IndexDescriptor{
 				Name:        "c",
 				Unique:      false,
+				Primary:     false,
 				ColumnNames: []string{"a", "b"},
 			},
 		},
 		{
-			"a INT, b INT, CONSTRAINT c UNIQUE (a, b)",
+			"a INT, b INT, CONSTRAINT c INDEX (a, b)",
 			structured.IndexDescriptor{
 				Name:        "c",
+				Unique:      false,
+				Primary:     false,
+				ColumnNames: []string{"a", "b"},
+			},
+		},
+		{
+			"a INT, b INT, CONSTRAINT c UNIQUE (b), PRIMARY KEY (a, b)",
+			structured.IndexDescriptor{
+				Name:        "primary",
 				Unique:      true,
+				Primary:     true,
 				ColumnNames: []string{"a", "b"},
 			},
 		},
@@ -157,6 +170,7 @@ func TestMakeTableDescIndexes(t *testing.T) {
 			structured.IndexDescriptor{
 				Name:        "primary",
 				Unique:      true,
+				Primary:     true,
 				ColumnNames: []string{"a", "b"},
 			},
 		},
@@ -168,7 +182,9 @@ func TestMakeTableDescIndexes(t *testing.T) {
 		}
 		schema, err := makeTableDesc(stmt[0].(*parser.CreateTable))
 		if err != nil {
-			t.Fatalf("%d: %v", i, err)
+			if err.Error() != "primary index unspecified" || d.index.Primary {
+				t.Fatalf("%d: %v", i, err)
+			}
 		}
 		if !reflect.DeepEqual(d.index, schema.Indexes[0]) {
 			t.Fatalf("%d: expected %+v, but got %+v", i, d.index, schema.Indexes[0])

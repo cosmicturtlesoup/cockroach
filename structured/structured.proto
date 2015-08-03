@@ -59,14 +59,15 @@ message IndexDescriptor {
   optional string name = 1 [(gogoproto.nullable) = false];
   optional uint32 id = 2 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID"];
   optional bool unique = 3 [(gogoproto.nullable) = false];
+  optional bool primary = 4 [(gogoproto.nullable) = false];
   // An ordered list of column names of which the index is comprised. This list
   // parallels the column_ids list. If duplicating the storage of the column
   // names here proves to be prohibitive, we could clear this field before
   // saving and reconstruct it after loading.
-  repeated string column_names = 4;
+  repeated string column_names = 5;
   // An ordered list of column ids of which the index is comprised. This list
   // parallels the column_names list.
-  repeated uint32 column_ids = 5 [(gogoproto.customname) = "ColumnIDs"];
+  repeated uint32 column_ids = 6 [(gogoproto.customname) = "ColumnIDs"];
 }
 
 // A TableDescriptor represents a table and is stored in a structured metadata
