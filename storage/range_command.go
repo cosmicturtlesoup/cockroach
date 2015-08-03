@@ -1167,7 +1167,11 @@ func (r *Range) changeReplicasTrigger(change *proto.ChangeReplicasTrigger) error
 	}
 	// If we're removing the current replica, add it to the range GC queue.
 	if change.ChangeType == proto.REMOVE_REPLICA && r.rm.StoreID() == change.Replica.StoreID {
-		r.rm.rangeGCQueue().Add(r, 1.0)
+		if err := r.rm.rangeGCQueue().Add(r, 1.0); err != nil {
+			// Log the error; this shouldn't prevent the commit; the range
+			// will be GC'd eventually.
+			log.Errorf("unable to add range %s to GC queue: %s", r, err)
+		}
 	}
 	return nil
 }

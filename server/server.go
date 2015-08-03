@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	snappy "github.com/cockroachdb/c-snappy"
+	"github.com/cockroachdb/c-snappy"
 	"github.com/cockroachdb/cockroach/client"
 	"github.com/cockroachdb/cockroach/gossip"
 	"github.com/cockroachdb/cockroach/gossip/resolver"

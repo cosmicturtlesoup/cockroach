@@ -19,6 +19,7 @@ package storage
 
 import (
 	"container/heap"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -73,6 +74,11 @@ func (pq *priorityQueue) update(item *rangeItem, priority float64) {
 	item.priority = priority
 	heap.Fix(pq, item.index)
 }
+
+var (
+	queueDisabled   = errors.New("range gc queue disabled")
+	rangeNotAddable = errors.New("range shouldn't be added")
+)
 
 type queueImpl interface {
 	// needsLeaderLease returns whether this queue requires the leader
@@ -150,8 +156,8 @@ func (bq *baseQueue) Start(clock *hlc.Clock, stopper *stop.Stopper) {
 // Add adds the specified range to the queue, regardless of the return
 // value of bq.shouldQueue. The range is added with specified
 // priority. If the queue is too full, the range may not be
-// added. Returns true if the range was added; false otherwise.
-func (bq *baseQueue) Add(rng *Range, priority float64) bool {
+// added. Returns an error if the range was not added.
+func (bq *baseQueue) Add(rng *Range, priority float64) error {
 	bq.Lock()
 	defer bq.Unlock()
 	return bq.addInternal(rng, true, priority)
@@ -165,27 +171,29 @@ func (bq *baseQueue) MaybeAdd(rng *Range, now proto.Timestamp) {
 	bq.Lock()
 	defer bq.Unlock()
 	should, priority := bq.impl.shouldQueue(now, rng)
-	bq.addInternal(rng, should, priority)
+	if err := bq.addInternal(rng, should, priority); err != nil && log.V(1) {
+		log.Infof("couldn't add %s to queue %s: %s", rng, bq.name, err)
+	}
 }
 
 // addInternal adds the range the queue with specified priority. If the
 // range is already queued, updates the existing priority. Expects the
-// queue lock is held by caller. Returns true if the range was queued;
-// false otherwise.
-func (bq *baseQueue) addInternal(rng *Range, should bool, priority float64) bool {
+// queue lock is held by caller. Returns an error if the range was not
+// added.
+func (bq *baseQueue) addInternal(rng *Range, should bool, priority float64) error {
 	if atomic.LoadInt32(&bq.disabled) == 1 {
-		return false
+		return queueDisabled
 	}
 	item, ok := bq.ranges[rng.Desc().RaftID]
 	if !should {
 		if ok {
 			bq.remove(item.index)
 		}
-		return false
+		return rangeNotAddable
 	} else if ok {
 		// Range has already been added; update priority.
 		bq.priorityQ.update(item, priority)
-		return true
+		return nil
 	}
 
 	if log.V(1) {
@@ -206,7 +214,7 @@ func (bq *baseQueue) addInternal(rng *Range, should bool, priority float64) bool
 	default:
 		// No need to signal again.
 	}
-	return true
+	return nil
 }
 
 // MaybeRemove removes the specified range from the queue if enqueued.
