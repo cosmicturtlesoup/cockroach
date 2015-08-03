@@ -55,6 +55,7 @@ import "strings"
   updateExprs    []*UpdateExpr
   limit          *Limit
   targetList     TargetList
+  targetListPtr  *TargetList
   privilegeType  PrivilegeType
   privilegeList  PrivilegeList
 }
@@ -287,7 +288,8 @@ import "strings"
 %type <empty> opt_existing_window_name
 
 %type <targetList>    privilege_target
-%type <strs>          grantee_list 
+%type <targetListPtr> on_privilege_target_clause
+%type <strs>          grantee_list for_grantee_clause
 %type <privilegeList> privileges privilege_list
 %type <privilegeType> privilege
 
@@ -336,7 +338,7 @@ import "strings"
 %token <str>   FALSE FAMILY FETCH FILTER FIRST FLOAT FOLLOWING FOR
 %token <str>   FORCE FOREIGN FORWARD FREEZE FROM FULL FUNCTION FUNCTIONS
 
-%token <str>   GLOBAL GRANT GRANTED GREATEST GROUP GROUPING
+%token <str>   GLOBAL GRANT GRANTED GRANTS GREATEST GROUP GROUPING
 
 %token <str>   HANDLER HAVING HEADER HOLD HOUR
 
@@ -1041,6 +1043,30 @@ show_stmt:
 | SHOW INDEX FROM var_name
   {
     $$ = &ShowIndex{Table: $4}
+  }
+| SHOW GRANTS on_privilege_target_clause for_grantee_clause
+  {
+		$$ = &ShowGrants{Targets: $3, Grantees: $4}
+  }
+
+on_privilege_target_clause:
+  ON privilege_target
+  {
+		$$ = &$2
+  }
+  | /* EMPTY */
+  {
+    $$ = nil
+  }
+
+for_grantee_clause:
+  FOR grantee_list
+  {
+		$$ = $2
+  }
+  | /* EMPTY */
+  {
+    $$ = nil
   }
 
 // CREATE TABLE relname
